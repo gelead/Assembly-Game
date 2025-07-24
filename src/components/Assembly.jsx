@@ -1,109 +1,182 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { languages } from "./languages";
+import winSoundFile from "../assets/win.wav";
+import loseSoundFile from "../assets/lose.wav";
 
-const MAX_WRONG_GUESSES = 8;
-const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+const getRandomWord = (difficulty) => {
+  const filtered =
+    difficulty === "easy"
+      ? languages.filter((l) => l.name.length <= 5)
+      : difficulty === "hard"
+      ? languages.filter((l) => l.name.length > 8)
+      : languages;
+  const index = Math.floor(Math.random() * filtered.length);
+  return filtered[index].name.toLowerCase();
+};
 
 const Assembly = () => {
-  const [currentWord, setCurrentWord] = useState("react");
+  const [currentWord, setCurrentWord] = useState(getRandomWord("medium"));
   const [guessedLetters, setGuessedLetters] = useState([]);
+  const [difficulty, setDifficulty] = useState("medium");
+  const [score, setScore] = useState(
+    parseInt(localStorage.getItem("assemblyScore")) || 0
+  );
+
+  const winSound = new Audio(winSoundFile);
+  const loseSound = new Audio(loseSoundFile);
 
   const wrongGuessCount = guessedLetters.filter(
-    (l) => !currentWord.includes(l.toLowerCase())
+    (letter) => !currentWord.includes(letter.toLowerCase())
   ).length;
 
   const gameWon = currentWord
     .split("")
-    .every((l) => guessedLetters.includes(l.toUpperCase()));
-  const gameLost = wrongGuessCount >= MAX_WRONG_GUESSES;
+    .every((letter) => guessedLetters.includes(letter.toUpperCase()));
+  const gameLost = wrongGuessCount === 8;
   const gameOver = gameWon || gameLost;
 
-  const handleLetterClick = (letter) => {
-    if (!guessedLetters.includes(letter) && !gameOver) {
-      setGuessedLetters((prev) => [...prev, letter]);
+  useEffect(() => {
+    if (gameWon) {
+      winSound.play();
+      const newScore = score + 10;
+      setScore(newScore);
+      localStorage.setItem("assemblyScore", newScore);
+    }
+    if (gameLost) {
+      loseSound.play();
+      const newScore = Math.max(0, score - 5);
+      setScore(newScore);
+      localStorage.setItem("assemblyScore", newScore);
+    }
+  }, [gameWon, gameLost]);
+
+  const handleNewGame = () => {
+    setGuessedLetters([]);
+    const newWord = getRandomWord(difficulty);
+    setCurrentWord(newWord);
+  };
+
+  const handleHint = () => {
+    const unguessed = currentWord
+      .split("")
+      .filter((l) => !guessedLetters.includes(l.toUpperCase()));
+    if (unguessed.length > 0) {
+      const hintLetter = unguessed[Math.floor(Math.random() * unguessed.length)].toUpperCase();
+      setGuessedLetters((prev) => [...prev, hintLetter]);
     }
   };
 
-  const handleNewGame = () => {
-    const random = Math.floor(Math.random() * languages.length);
-    setCurrentWord(languages[random].name.toLowerCase());
-    setGuessedLetters([]);
+  const addGuessedLetters = (letter) => {
+    setGuessedLetters((prevLetters) =>
+      prevLetters.includes(letter) ? prevLetters : [...prevLetters, letter]
+    );
   };
 
-  const farewellLanguages = languages.slice(0, wrongGuessCount);
+  const fareWells = languages.slice(0, wrongGuessCount).map((l) => l.name);
+  const fareWellDisplay = (
+    <section className="flex justify-center items-center gap-2">
+      <p className="text-white">Fare well:</p>
+      <section className="flex gap-1 text-sm flex-wrap">
+        {fareWells.map((fare, index) => (
+          <span key={index} className="text-gray-300 italic">{fare}</span>
+        ))}
+      </section>
+      <p>🫡</p>
+    </section>
+  );
+
+  const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 
   return (
-    <main className="max-w-xl mx-auto text-center px-4 py-6 text-white">
-      <header className="mb-4">
-        <h1 className="text-3xl font-bold">Assembly: Endgame</h1>
-        <p className="text-sm mt-1">
-          Guess the word in under 8 attempts or witness fallen languages fade away...
+    <main className="text-center w-md m-auto">
+      <header>
+        <h1 className="text-2xl p-2">Assembly: Endgame</h1>
+        <p className="text-sm">
+          Guess the dead language before it's too late.
         </p>
+        <p className="text-sm text-yellow-300 mt-2">Score: {score}</p>
+        <div className="my-2">
+          <label className="mr-2 text-sm">Difficulty:</label>
+          <select
+            value={difficulty}
+            onChange={(e) => setDifficulty(e.target.value)}
+            className="p-1 rounded bg-gray-700 text-white"
+          >
+            <option value="easy">Easy</option>
+            <option value="medium">Medium</option>
+            <option value="hard">Hard</option>
+          </select>
+        </div>
       </header>
 
-      {/* Game Status Banner */}
-      {gameOver && (
+      {gameOver ? (
         <section
-          className={`rounded-md border p-3 mb-4 ${
-            gameWon
-              ? "bg-green-600 border-green-800"
-              : "bg-red-600 border-red-800"
-          }`}
+          className={`${
+            gameWon ? "bg-green-500" : "bg-red-500"
+          } text-black w-sm m-auto p-2 rounded-md my-2 border`}
         >
-          <h2 className="text-xl font-semibold">
-            {gameWon ? "You win! 🎉" : "Game Over 💀"}
-          </h2>
+          <h2 className="text-xl">{gameWon ? "You win!" : "Game Over"}</h2>
           <p className="text-sm">
-            {gameWon ? "Well done, you preserved a legacy." : "The code is lost forever."}
+            {gameWon ? "Well done!" : "Try again!"}
           </p>
         </section>
+      ) : (
+        wrongGuessCount > 0 && (
+          <section className="bg-blue-500 w-sm m-auto p-2 rounded-md my-2 border">
+            {fareWellDisplay}
+          </section>
+        )
       )}
 
-      {/* Farewell Dead Languages */}
-      {!gameOver && wrongGuessCount > 0 && (
-        <section className="bg-blue-800 rounded-md border border-blue-400 p-2 mb-3">
-          <p className="text-sm mb-1">Farewell, lost languages 🫡</p>
-          <div className="flex flex-wrap gap-2 justify-center text-xs">
-            {farewellLanguages.map((lang, index) => (
-              <span key={index} className="bg-blue-950 px-2 py-1 rounded-md">
-                {lang.name}
-              </span>
-            ))}
-          </div>
-        </section>
-      )}
+      <section className="flex flex-wrap justify-center gap-1 p-1 my-2">
+        {languages.map((lan, index) => {
+          const wrongItem = wrongGuessCount > index;
+          return (
+            <span
+              style={{
+                backgroundColor: lan.backgroundColor,
+                color: lan.color,
+                opacity: wrongItem ? 0.3 : 1,
+              }}
+              className="px-3 py-1 rounded-sm"
+              key={lan.name}
+            >
+              {wrongItem ? "💀" : lan.name}
+            </span>
+          );
+        })}
+      </section>
 
-      {/* Word Display */}
-      <section className="flex justify-center gap-2 mb-4">
+      <section className="p-2 flex gap-2 flex-wrap justify-center">
         {currentWord.split("").map((letter, index) => (
           <span
+            className="w-10 h-9 flex items-center justify-center text-md border-b-2 bg-gray-900 text-white"
             key={index}
-            className="w-10 h-10 bg-gray-900 border-b-2 border-white flex items-center justify-center text-lg font-mono"
           >
-            {guessedLetters.includes(letter.toUpperCase())
-              ? letter.toUpperCase()
-              : ""}
+            {guessedLetters.includes(letter.toUpperCase()) ? letter.toUpperCase() : ""}
           </span>
         ))}
       </section>
 
-      {/* Keyboard */}
-      <section className="flex flex-wrap justify-center gap-1 mb-4">
-        {LETTERS.map((letter) => {
+      <section className="flex flex-wrap justify-center p-3 gap-1 my-2">
+        {letters.map((letter) => {
           const isGuessed = guessedLetters.includes(letter);
-          const isCorrect = currentWord.includes(letter.toLowerCase());
-          const color = isGuessed
-            ? isCorrect
-              ? "bg-green-600"
-              : "bg-red-600"
-            : "bg-yellow-500";
+          const isCorrect =
+            isGuessed && currentWord.includes(letter.toLowerCase());
 
           return (
             <button
-              key={letter}
-              onClick={() => handleLetterClick(letter)}
+              onClick={() => addGuessedLetters(letter)}
+              className="w-9 h-9 rounded-sm text-black"
               disabled={isGuessed || gameOver}
-              className={`w-9 h-9 rounded text-black font-bold ${color} disabled:opacity-50`}
+              style={{
+                backgroundColor: isGuessed
+                  ? isCorrect
+                    ? "green"
+                    : "red"
+                  : "#f59e0b",
+              }}
+              key={letter}
             >
               {letter}
             </button>
@@ -111,34 +184,22 @@ const Assembly = () => {
         })}
       </section>
 
-      {/* Language Visuals */}
-      <section className="flex flex-wrap justify-center gap-2 mb-4">
-        {languages.map((lang, idx) => {
-          const isDead = idx < wrongGuessCount;
-          return (
-            <span
-              key={lang.name}
-              className="px-3 py-1 rounded-md text-sm"
-              style={{
-                backgroundColor: lang.backgroundColor,
-                color: lang.color,
-                opacity: isDead ? 0.4 : 1,
-              }}
-            >
-              {isDead ? "💀" : lang.name}
-            </span>
-          );
-        })}
-      </section>
-
-      {gameOver && (
+      <div className="flex gap-4 justify-center mt-4">
         <button
           onClick={handleNewGame}
-          className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 rounded text-white mt-2"
+          className="py-2 px-6 rounded-sm text-white bg-blue-600"
         >
-          🔁 New Game
+          New Game
         </button>
-      )}
+        {!gameOver && (
+          <button
+            onClick={handleHint}
+            className="py-2 px-6 rounded-sm text-white bg-purple-600"
+          >
+            Hint 🧠
+          </button>
+        )}
+      </div>
     </main>
   );
 };

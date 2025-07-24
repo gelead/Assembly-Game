@@ -10,7 +10,18 @@ const Assembly = () => {
     );
   }
 
-  console.log(guessedLetters);
+  const wrongGuessCount = guessedLetters.filter(
+    (letter) => !currentWord.includes(letter.toLowerCase())
+  ).length;
+  const gameWon = currentWord
+    .split("")
+    .every((letter) => guessedLetters.includes(letter.toUpperCase()));
+  const gameLost = wrongGuessCount == 8;
+  const handleNewGame = () => {
+    setGuessedLetters((prevLetters) =>
+    []
+    );
+  };
   const letters = [
     "A",
     "B",
@@ -42,40 +53,54 @@ const Assembly = () => {
   return (
     <main className="text-center w-md m-auto">
       <header className="w-md m-auto">
-        <h1 className="text-3xl p-2">Assembly: Endgame</h1>
+        <h1 className="text-2xl p-1">Assembly: Endgame</h1>
         <p className="text-sm p-2">
           Guess the word in under 8 attempts to keep the programming world save
           from the Assembly
         </p>
       </header>
-      <section className="bg-green-500 w-sm m-auto p-1 rounded-md my-4 border">
-        <h2 className="text-xl">You win!</h2>
-        <p className="text-sm">well done</p>
+
+      {gameWon && (
+        <section className="bg-green-500 w-sm m-auto p-1 rounded-md my-2 border">
+          <h2 className="text-xl">You win!</h2>
+          <p className="text-sm">well done</p>
+        </section>
+      )}
+      {gameLost && (
+        <section className="bg-red-500 text-black w-sm m-auto p-1 rounded-md my-2 border">
+          <h2 className="text-xl">Game Over</h2>
+          <p className="text-sm">try again!</p>
+        </section>
+      )}
+      <section className="flex flex-wrap justify-center gap-1 p-1 my-2">
+        {languages.map((lan, index) => {
+          const wrongItem = wrongGuessCount > index;
+          return (
+            <span
+              style={{
+                backgroundColor: lan.backgroundColor,
+                color: lan.color,
+              }}
+              className="px-3 py-1 rounded-sm"
+              key={lan.name}
+            >
+              {wrongItem ? "💀" : lan.name}
+            </span>
+          );
+        })}
       </section>
-      <section className="flex flex-wrap justify-center gap-1 p-1 my-3">
-        {languages.map((lan) => (
-          <span
-            style={{
-              backgroundColor: lan.backgroundColor,
-              color: lan.color,
-            }}
-            className="px-3 py-1 rounded-sm"
-            key={lan.name}
-          >
-            {lan.name}
-          </span>
-        ))}
-      </section>
-      <section className="border p-2 flex gap-2 flex-wrap justify-center">
+      <section className="p-2 flex gap-2 flex-wrap justify-center">
         {currentWord.split("").map((letter, index) => (
           <span
-            className="px-4 py-2 text-md border-b-2"
+            className=" w-10 h-9 flex items-center justify-center text-md border-b-2"
             style={{
               backgroundColor: "#111",
             }}
             key={index}
           >
-            {letter.toUpperCase()}
+            {guessedLetters.includes(letter.toUpperCase())
+              ? letter.toUpperCase()
+              : ""}
           </span>
         ))}
       </section>
@@ -103,7 +128,10 @@ const Assembly = () => {
           );
         })}
       </section>
-      <button className="py-2 px-8 my-4 rounded-sm text-black bg-blue-600">
+      <button
+        onClick={() => handleNewGame}
+        className="py-2 px-8 my-4 rounded-sm text-black bg-blue-600"
+      >
         New Game
       </button>
     </main>
